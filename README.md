@@ -1,1 +1,1 @@
-# robo_compras_ce
+# bot-compras-ce
