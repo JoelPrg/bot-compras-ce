@@ -1,41 +1,44 @@
-import requests
-from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 
-def efetuar_login(USUARIO, SENHA):
-    # inicia uma sessão para conseguir manter o fluxo de tarefas
-    session = requests.Session()
+async def realizar_login(usuario, senha):
+    # inicializa o navegador
+    playwright = await async_playwright().start()
+    browser = await playwright.firefox.launch(headless=False)
+    context = await browser.new_context(ignore_https_errors=True)
+    page = await context.new_page()
 
-    # obter o viewstate
-    url_login = "http://s2gpr.sefaz.ce.gov.br/cotacao-web/padrao-web/paginas/seguranca/login.seam"
-    res = session.get(url_login)
-    soup = BeautifulSoup(res.text, "html.parser")
-    view_state = soup.find("input", {"name": "javax.faces.ViewState"})["value"]
+    # preenche e executa o login
+    await page.goto("https://s2gpr.sefaz.ce.gov.br/licita-web/padrao-web/paginas/seguranca/login.seam")
+    await page.fill(r"#login\:username", usuario)
+    await page.fill(r"#login\:password", senha)
+    await page.click(r"#login\:login")
 
-    # dados do formulário (payload)
-    data = {
-        "AJAXREQUEST": "_viewRoot",
-        "login:username": USUARIO,
-        "login:password": SENHA,
-        "login:rememberMe": "on",
-        "login:login": "login",
-        "autoScroll": "",
-        "javax.faces.ViewState": view_state
-    }
+    # retorna tudo pra ser usado depois
+    return browser, context, page, playwright
 
-    # dados pra simular mozilla firefox
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": "Mozilla/5.0",
-        "Referer": url_login
-    }
 
-    # efetua de fato o login
-    res_post = session.post(url_login, data=data, headers=headers)
 
-    # Testa se o login foi feito
-    if "sair" in res_post.text.lower() or "logout" in res_post.text.lower():
-        print("Login bem-sucedido!")
-    else:
-        print("Algo deu errado no login.")
-        with open("resposta.html", "w", encoding="utf-8") as f:
-            f.write(res_post.text)
+
+
+from playwright.sync_api import sync_playwright
+from dotenv import load_dotenv
+import os
+
+def login():
+    # carregando informações de login
+    load_dotenv()
+    username = os.getenv('LOGIN_USERNAME')
+    password = os.getenv('LOGIN_PASSWORD')
+
+    # abertura de mavegador e login
+    with sync_playwright() as p:
+        # abetura de browser ignorando o SSL
+        browser = p.firefox.launch(headless=False)
+        context = browser.new_context(ignore_https_errors=True)
+        page = context.new_page()
+        page.goto("https://s2gpr.sefaz.ce.gov.br/licita-web/padrao-web/paginas/seguranca/login.seam")
+
+        # inserindo login e senha
+        page.get_by_label("login:username").fill(username)
+        page.get_by_label("login:password:").fill(password)
+        page.get_by_role("login:login").click()
